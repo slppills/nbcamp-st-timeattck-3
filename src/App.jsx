@@ -1,35 +1,70 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import "./App.css";
+import axios from "axios";
+import { useState } from "react";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const queryClient = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [views, setViews] = useState(0);
+
+  const getPosts = async () => {
+    const response = await axios.get("http://localhost:5000/posts");
+    return response.data;
+  };
+
+  const updatePosts = async (formData) => {
+    const response = await axios.post("http://localhost:5000/posts", formData);
+    return response.data;
+  };
+
+  const {
+    data: posts,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => getPosts(),
+  });
+
+  const { mutate } = useMutation({
+    mutationFn: updatePosts,
+    onSuccess: () => {
+      alert("등록 완료");
+      queryClient.invalidateQueries(["posts"]);
+    },
+  });
+
+  if (isLoading) {
+    return <div>로딩중</div>;
+  }
+  if (isError) {
+    return <div>에러 발생</div>;
+  }
+  if (posts) {
+    console.log(posts);
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutate({ title, views });
+        }}
+      >
+        <input type="text" placeholder="title 입력" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input type="number" placeholder="views 입력" value={views} onChange={(e) => setViews(e.target.value)} />
+        <button type="submit">입력</button>
+      </form>
+      {posts.map((post, index) => (
+        <div key={index} style={{ display: "flex", alignItems: "center", gap: "40px" }}>
+          <h1>{post.title}</h1>
+          <p>{post.views}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-export default App
+export default App;
