@@ -1,35 +1,75 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import "./App.css";
+import axios from "axios";
+import { useEffect } from "react";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const queryClient = useQueryClient();
+
+  const getProfiles = async () => {
+    const response = await axios.get("http://localhost:5000/profile");
+    return response.data;
+  };
+
+  const getPosts = async () => {
+    const response = await axios.get("http://localhost:5000/posts");
+    return response.data;
+  };
+
+  const getComments = async (id) => {
+    const response = await axios.get(`http://localhost:5000/comments/${id}`);
+    return response.data;
+  };
+
+  const {
+    data: profiles,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => getProfiles(),
+  });
+
+  const { data: posts } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => getPosts(),
+  });
+
+  const { data: comments, refetch } = useQuery({
+    queryKey: ["comment"],
+    queryFn: ({ queryKey }) => {
+      console.log(queryKey);
+      const [{ postId }] = queryKey;
+      return getComments(postId);
+    },
+    enabled: false,
+  });
+
+  useEffect(() => {
+    console.log(comments);
+  }, [comments]);
+
+  if (isLoading) {
+    return <div>로딩중</div>;
+  }
+  if (isError) {
+    return <div>오류</div>;
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div>
+      {Object.values(profiles).map((profile, index) => {
+        return <h1 key={index}>{profile}</h1>;
+      })}
+      {posts.map((post, index) => (
+        <div key={index} style={{ display: "flex", alignItems: "center", gap: "40px" }}>
+          <h1>{post.title}</h1>
+          <p>{post.views}</p>
+          <button onClick={() => refetch({ queryKey: [{ type: "comment", postId: post.id }] })}>댓글 보기</button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-export default App
+export default App;
